@@ -9,10 +9,14 @@ if 'usuario' in st.session_state:
 
     # Mostrar los dispositivos registrados
     st.subheader("Lista de dispositivos registrados")
-    
-    if "dispositivos" not in st.session_state:
-        # Consultar los dispositivos solo la primera vez
+
+    # Función para actualizar la lista de dispositivos en session_state
+    def actualizar_tabla_dispositivos():
         st.session_state["dispositivos"] = consultar_dispositivos()
+
+    # Consultar dispositivos si no están en session_state
+    if "dispositivos" not in st.session_state:
+        actualizar_tabla_dispositivos()
 
     dispositivos = st.session_state["dispositivos"]
 
@@ -33,6 +37,11 @@ if 'usuario' in st.session_state:
     else:
         st.warning("No hay dispositivos registrados.")
 
+    # Botón para actualizar manualmente la tabla
+    if st.button("Actualizar tabla"):
+        actualizar_tabla_dispositivos()
+        #st.success("Tabla actualizada correctamente.")
+
     # Formulario para agregar un nuevo dispositivo
     st.subheader("Agregar un nuevo dispositivo")
     with st.form("form_agregar_dispositivo"):
@@ -45,7 +54,7 @@ if 'usuario' in st.session_state:
             if nombre and tipo and descripcion:
                 insertar_dispositivo(nombre, tipo, descripcion)
                 st.success(f"Dispositivo '{nombre}' agregado correctamente.")
-                # Actualizar la tabla dinámicamente
-                st.session_state["dispositivos"] = consultar_dispositivos()
+                # Actualizar la tabla dinámicamente después de agregar
+                actualizar_tabla_dispositivos()
             else:
                 st.error("Todos los campos son obligatorios.")

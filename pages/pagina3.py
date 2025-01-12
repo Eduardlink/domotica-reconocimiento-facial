@@ -23,9 +23,17 @@ if 'usuario' in st.session_state:
 
         st.markdown(f"### Dispositivos asociados al usuario: **{usuario_seleccionado}**")
 
-        # Mostrar dispositivos asociados al usuario
-        dispositivos_asociados = obtener_dispositivos_usuario(id_usuario_seleccionado)
+        # Callback interno para actualizar los dispositivos asociados
+        if f"dispositivos_asociados_{id_usuario_seleccionado}" not in st.session_state:
+            st.session_state[f"dispositivos_asociados_{id_usuario_seleccionado}"] = obtener_dispositivos_usuario(id_usuario_seleccionado)
 
+        # Función para actualizar la tabla dinámicamente
+        def actualizar_dispositivos_asociados():
+            st.session_state[f"dispositivos_asociados_{id_usuario_seleccionado}"] = obtener_dispositivos_usuario(id_usuario_seleccionado)
+
+        dispositivos_asociados = st.session_state[f"dispositivos_asociados_{id_usuario_seleccionado}"]
+
+        # Renderizar la tabla de dispositivos asociados
         if dispositivos_asociados:
             st.table(
                 [
@@ -40,6 +48,11 @@ if 'usuario' in st.session_state:
             )
         else:
             st.warning("Este usuario no tiene dispositivos asociados.")
+
+        # Botón para actualizar la tabla
+        if st.button("Actualizar tabla"):
+            actualizar_dispositivos_asociados()
+            #st.success("Tabla actualizada correctamente.")
 
         # Formulario para agregar dispositivos al usuario
         st.markdown("### Agregar dispositivo al usuario")
@@ -57,8 +70,8 @@ if 'usuario' in st.session_state:
                 id_dispositivo_seleccionado = opciones_dispositivos[dispositivo_seleccionado]
                 agregar_permiso(id_usuario_seleccionado, id_dispositivo_seleccionado)
                 st.success(f"El dispositivo '{dispositivo_seleccionado}' ha sido asociado al usuario '{usuario_seleccionado}'.")
-                # Recargar la lista de dispositivos asociados
-                dispositivos_asociados = obtener_dispositivos_usuario(id_usuario_seleccionado)
+                # Llamar al callback para actualizar la tabla automáticamente
+                actualizar_dispositivos_asociados()
         else:
             st.warning("No hay dispositivos disponibles para asociar.")
     else:

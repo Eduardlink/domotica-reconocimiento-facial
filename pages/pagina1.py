@@ -72,12 +72,15 @@ login.generarLogin()
 if 'usuario' in st.session_state:
     st.header('Gestión de :blue[Usuarios]')
 
+    # Función para actualizar la lista de usuarios
+    def actualizar_tabla_usuarios():
+        st.session_state["usuarios"] = consultar_usuarios()
+
     # Mostrar los usuarios registrados
     st.subheader("Lista de usuarios registrados")
 
     if "usuarios" not in st.session_state:
-        # Consultar los usuarios solo la primera vez
-        st.session_state["usuarios"] = consultar_usuarios()
+        actualizar_tabla_usuarios()
 
     usuarios = st.session_state["usuarios"]
 
@@ -96,6 +99,11 @@ if 'usuario' in st.session_state:
         )
     else:
         st.warning("No hay usuarios registrados.")
+
+    # Botón para actualizar manualmente la tabla
+    if st.button("Actualizar tabla"):
+        actualizar_tabla_usuarios()
+        #st.success("Tabla de usuarios actualizada correctamente.")
 
     # Formulario para agregar un nuevo usuario
     st.subheader("Agregar un nuevo usuario")
@@ -146,8 +154,6 @@ if 'usuario' in st.session_state:
                     st.success(f"Usuario '{usuario}' registrado con éxito. Modelo entrenado con una precisión de {precision:.2f}% en validación.")
                     st.session_state["rutas_imagenes"] = None  # Reiniciar las imágenes
                     # Actualizar la tabla dinámicamente
-                    st.session_state["usuarios"] = consultar_usuarios()
+                    actualizar_tabla_usuarios()
                 except Exception as e:
                     st.error(f"Error: {e}")
-
-# Función para capturar imágenes
