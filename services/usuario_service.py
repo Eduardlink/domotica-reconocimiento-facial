@@ -1,16 +1,16 @@
 from services.base_datos import create_connection, execute_query, close_connection
 
-def insertar_usuario(usuario, contraseña, url_carpeta):
+def insertar_usuario(usuario, contraseña, url_carpeta, admin=False):
     """
     Inserta un nuevo usuario en la base de datos.
     """
     connection = create_connection()
     if connection:
         query = """
-        INSERT INTO usuarios (usuario, contraseña, url_carpeta)
-        VALUES (%s, %s, %s);
+        INSERT INTO usuarios (usuario, contraseña, url_carpeta, admin)
+        VALUES (%s, %s, %s, %s);
         """
-        params = (usuario, contraseña, url_carpeta)
+        params = (usuario, contraseña, url_carpeta, admin)
         execute_query(connection, query, params)
         close_connection(connection)
 

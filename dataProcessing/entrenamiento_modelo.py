@@ -5,7 +5,7 @@ import h5py
 from PIL import Image
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import train_test_split
-from activations import relu, relu_derivative, softmax
+from dataProcessing.activations import relu, relu_derivative, softmax
 
 def cargar_datos(base_dir, target_size=(128, 128)):
     X, y, clases = [], [], []
