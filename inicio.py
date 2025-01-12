@@ -1,6 +1,6 @@
 import streamlit as st
 import login as login
-from services.dispositivos_service import consultar_dispositivos
+from services.dispositivos_service import consultar_dispositivos, actualizar_estado_dispositivo
 from services.permisos_service import verificar_permiso
 from tensorflow.keras.models import load_model
 import cv2
@@ -9,10 +9,18 @@ import os
 import json
 from dataProcessing.preprocesamiento import preprocesar_imagen
 
+st.markdown('''
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+''', unsafe_allow_html=True)
+
 st.header('Página :orange[principal]')
 login.generarLogin()
 
 if 'usuario' in st.session_state:
+
+    st.markdown('''
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    ''', unsafe_allow_html=True)
     st.subheader('Gestión de Dispositivos')
 
     # Cargar el modelo de reconocimiento facial y el mapeo de etiquetas
@@ -27,13 +35,30 @@ if 'usuario' in st.session_state:
             class_indices = json.load(f)
         label_map = {v: k for k, v in class_indices.items()}  # Invertir el mapeo
 
-    # Inicializar estados de dispositivos en st.session_state
-    if 'dispositivos_estado' not in st.session_state:
+    # Consultar dispositivos y cargar estado inicial en session_state
+    if "dispositivos_estado" not in st.session_state:
         dispositivos = consultar_dispositivos()
         st.session_state['dispositivos_estado'] = {
-            dispositivo[0]: {'nombre': dispositivo[1], 'tipo': dispositivo[2], 'estado': 'desactivado'}
+            dispositivo[0]: {
+                'nombre': dispositivo[1],
+                'tipo': dispositivo[2],
+                'estado': 'activado' if dispositivo[4] == 1 else 'desactivado',
+                'icono_activado': dispositivo[5],
+                'icono_desactivado': dispositivo[6],
+            }
             for dispositivo in dispositivos
         }
+
+    def parse_material_icon(icono_bd: str) -> str:
+        """
+        Convierte ':material/tv:' en la palabra 'tv' 
+        (o el texto correcto que Material Icons usa dentro de <i>).
+        """
+        # Aquí asumo que el icono siempre viene con la forma :material/tv:
+        # y que lo único que necesitas es quedarte con 'tv'
+        icono_limpio = icono_bd.replace(':material/', '').replace(':', '')
+        return icono_limpio
+
 
     # Función para reconocimiento facial
     def reconocer_usuario():
@@ -56,15 +81,15 @@ if 'usuario' in st.session_state:
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(100, 100))
 
-                # Dibujar rectángulos en cada rostro detectado, solo para visualización
+                # Dibujar rectángulos en cada rostro detectado
                 for (x, y, w, h) in faces:
                     cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
-                # Mostrar el video en una ventana de OpenCV
+                # Mostrar video en OpenCV
                 cv2.imshow('Camara - presiona C para capturar y Q para salir', frame)
 
                 key = cv2.waitKey(1) & 0xFF
-                if key == ord('c') and len(faces) > 0:  # Capturar rostro al presionar 'c'
+                if key == ord('c') and len(faces) > 0:
                     (x, y, w, h) = faces[0]
                     rostro = frame[y:y+h, x:x+w]
 
@@ -77,10 +102,8 @@ if 'usuario' in st.session_state:
                     label_idx = np.argmax(prediction)
                     usuario_reconocido = label_map[label_idx]
                     break
-
                 elif key == ord('q'):  # Salir al presionar 'q'
                     break
-
         finally:
             cap.release()
             cv2.destroyAllWindows()
@@ -99,8 +122,10 @@ if 'usuario' in st.session_state:
             tiene_permiso = verificar_permiso(usuario_reconocido, id_dispositivo)
             if tiene_permiso:
                 dispositivo = st.session_state['dispositivos_estado'][id_dispositivo]
-                dispositivo['estado'] = 'activado' if dispositivo['estado'] == 'desactivado' else 'desactivado'
-                st.success(f"Dispositivo '{dispositivo['nombre']}' {'activado' if dispositivo['estado'] == 'activado' else 'desactivado'} correctamente.")
+                nuevo_estado = 0 if dispositivo['estado'] == 'activado' else 1
+                actualizar_estado_dispositivo(id_dispositivo, nuevo_estado)
+                dispositivo['estado'] = 'activado' if nuevo_estado == 1 else 'desactivado'
+                st.success(f"Dispositivo '{dispositivo['nombre']}' {'activado' if nuevo_estado == 1 else 'desactivado'} correctamente.")
             else:
                 st.error(f"Acceso denegado. El usuario '{usuario_reconocido}' no tiene permisos para este dispositivo.")
         else:
@@ -111,28 +136,22 @@ if 'usuario' in st.session_state:
     columnas_por_fila = 2  # Número de columnas por fila
     filas = [dispositivos[i:i + columnas_por_fila] for i in range(0, len(dispositivos), columnas_por_fila)]
 
-    # Estilo CSS para las tarjetas
     st.markdown(
         """
         <style>
-        .stHorizontalBlock .stVerticalBlock {
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            padding: 20px;
-        }
-        .tarjeta h3 {
-            margin: 10px 0;
-        }
-        .tarjeta p {
-            margin: 5px 0;
-        }
+            .stHorizontalBlock .stVerticalBlock {
+                border: 1px solid #ccc;
+                border-radius: 10px;
+                box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+                text-align: center;
+                padding: 20px;
+            }
         </style>
         """,
         unsafe_allow_html=True
     )
 
+    # Mostrar las tarjetas con íconos dinámicos
     for fila in filas:
         cols = st.columns(columnas_por_fila)
         for idx, (id_dispositivo, info) in enumerate(fila):
@@ -140,18 +159,22 @@ if 'usuario' in st.session_state:
                 break
 
             with cols[idx]:
-                nombre = info['nombre']
-                estado = info['estado']
+                # Seleccionar el ícono según el estado
+                icono = parse_material_icon(info['icono_activado'] if info['estado'] == 'activado' else info['icono_desactivado'])
 
-                # Seleccionar ícono según el estado
-                icono = "✅" if estado == 'activado' else "❌"
+                # Determinar color según el estado
+                color = "green" if info['estado'] == 'activado' else "red"
 
-                # Mostrar tarjeta del dispositivo con estilo CSS
+                # Generar HTML para el ícono
+                icono_html = f'<i style="font-size:50px; color:{color};" class="material-symbols-outlined">{icono}</i>'
+
+                # Mostrar tarjeta con ícono y estado
                 st.markdown(
                     f"""
-                    <div class="tarjeta">
-                        <h3>{icono} {nombre}</h3>
-                        <p><strong>Estado:</strong> {'Activado' if estado == 'activado' else 'Desactivado'}</p>
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <h3 style="max-width: 50px;">{icono_html}</h3>
+                        <p><strong>{info['nombre']}</strong></p>
+                        <p><strong>Estado:</strong> {info['estado'].capitalize()}</p>
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -159,7 +182,7 @@ if 'usuario' in st.session_state:
 
                 # Botón de Activar/Desactivar con clave única
                 if st.button(
-                    f"Desactivar" if estado == 'activado' else "Activar",
+                    f"Desactivar" if info['estado'] == 'activado' else "Activar",
                     key=f"btn_{id_dispositivo}",
                     on_click=cambiar_estado_dispositivo,
                     args=(id_dispositivo,)
