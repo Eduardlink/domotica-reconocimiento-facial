@@ -6,7 +6,7 @@ from dataProcessing.preprocesamiento import procesar_imagenes
 from scripts.entrenamiento_modelo import entrenar_modelo
 import login
 
-def capturar_imagenes(usuario, num_fotos=3):
+def capturar_imagenes(usuario, num_fotos=5):
     """
     Abre la cámara, captura varias imágenes, detecta los rostros y los guarda.
 
@@ -121,7 +121,7 @@ if 'usuario' in st.session_state:
         # Capturar imágenes para el reconocimiento facial
         if capturar_btn:
             if usuario:
-                st.session_state["rutas_imagenes"] = capturar_imagenes(usuario, num_fotos=3)
+                st.session_state["rutas_imagenes"] = capturar_imagenes(usuario, num_fotos=5)
             else:
                 st.error("Por favor, ingresa un nombre de usuario antes de capturar las imágenes.")
 
