@@ -47,65 +47,79 @@ def reconocer_usuario():
     Captura una imagen con la cámara, detecta el rostro, lo procesa y lo reconoce.
     """
     st.info("Abriendo cámara para reconocimiento facial...")
-    
+
     # Cargar modelo entrenado
     model_path = "model/cnn_model.h5"
     class_indices_path = "model/class_indices.json"
-    
+
     if not os.path.exists(model_path) or not os.path.exists(class_indices_path):
         st.error("El modelo o el mapeo de etiquetas no están disponibles. Por favor, entrena el modelo primero.")
         return
-    
+
     model = load_model(model_path)
-    
+
     # Cargar mapeo de etiquetas
     with open(class_indices_path, "r") as f:
         class_indices = json.load(f)
     label_map = {v: k for k, v in class_indices.items()}  # Invertir el mapeo
-    
+
     # Cargar el modelo de detección de rostros
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-    
+
     # Inicializar la cámara
     cap = cv2.VideoCapture(0)
-    st.write("Presiona 'c' para capturar el rostro o 'q' para salir.")
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            st.error("No se pudo abrir la cámara.")
-            break
-        
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(100, 100))
-        
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
-        
-        cv2.imshow("Reconocimiento Facial", frame)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('c'):
-            if len(faces) > 0:
-                x, y, w, h = faces[0]
-                rostro = frame[y:y+h, x:x+w]
-                processed_frame = preprocesar_imagen(rostro)
-                processed_frame = np.expand_dims(processed_frame, axis=0)
-                
-                prediction = model.predict(processed_frame)
-                predicted_label = label_map[np.argmax(prediction)]
-                
-                st.success(f"Usuario reconocido: {predicted_label}")
-                usuario_data = buscar_usuario_por_nombre(predicted_label)
-                st.session_state["usuario"] = predicted_label
-                st.session_state["es_admin"] = bool(usuario_data[4]) if usuario_data else False
-                st.rerun()
-            else:
-                st.error("No se detectó ningún rostro. Intenta de nuevo.")
-            break
-        elif key == ord('q'):
-            st.info("Cerrando cámara sin capturar rostro.")
-            break
-    cap.release()
-    cv2.destroyAllWindows()
+    usuario_reconocido = None
+
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                st.error("No se pudo abrir la cámara.")
+                break
+
+            # Convertir a escala de grises para la detección
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(100, 100))
+
+            # Dibujar rectángulos alrededor de los rostros detectados
+            for (x, y, w, h) in faces:
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+            # Mostrar el video en una ventana
+            cv2.imshow("Reconocimiento Facial - Presiona 'c' para capturar, 'q' para salir", frame)
+
+            # Capturar imagen al presionar 'c'
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('c'):
+                if len(faces) > 0:
+                    x, y, w, h = faces[0]
+                    rostro = frame[y:y+h, x:x+w]
+                    processed_frame = preprocesar_imagen(rostro)
+                    processed_frame = np.expand_dims(processed_frame, axis=0)
+
+                    # Predicción
+                    prediction = model.predict(processed_frame)
+                    label_idx = np.argmax(prediction)
+                    usuario_reconocido = label_map[label_idx]
+                    break
+                else:
+                    st.error("No se detectó ningún rostro. Intenta de nuevo.")
+            elif key == ord('q'):
+                st.info("Cerrando cámara sin capturar rostro.")
+                break
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+
+    if usuario_reconocido:
+        st.success(f"Usuario reconocido: {usuario_reconocido}")
+        usuario_data = buscar_usuario_por_nombre(usuario_reconocido)
+        st.session_state["usuario"] = usuario_reconocido
+        st.session_state["es_admin"] = bool(usuario_data[4]) if usuario_data else False
+        st.rerun()
+    else:
+        st.error("No se pudo reconocer ningún rostro.")
+
 
 def generarLogin():
     """
