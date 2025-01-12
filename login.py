@@ -14,24 +14,33 @@ def validarUsuario(usuario, clave):
     """
     usuario_data = buscar_usuario_por_nombre(usuario)
     if usuario_data and usuario_data[2] == clave:  # La contraseña se encuentra en la tercera columna
-        return True
-    return False
+        return True, bool(usuario_data[4])  # La columna `admin` es el índice 4
+    return False, False
+
 
 def generarMenu(usuario):
     """
-    Genera el menú dependiendo del usuario.
+    Genera el menú dependiendo del usuario y su rol (admin o no).
     """
+    # Obtener detalles del usuario desde la base de datos
+    usuario_data = buscar_usuario_por_nombre(usuario)
+    es_admin = bool(usuario_data[4]) if usuario_data else False  # Verifica si es administrador
+
     with st.sidebar:
         st.write(f"Hola **:blue-background[{usuario}]**")
-        st.page_link("inicio.py", label="Inicio", icon=":material/home:")
-        st.subheader("Administrar permisos")
-        st.page_link("pages/pagina1.py", label="Usuarios", icon="👥")
-        st.page_link("pages/pagina2.py", label="Dispositivos", icon="🖥️")
-        st.page_link("pages/pagina3.py", label="Permisos", icon="🔗")
+        st.page_link("inicio.py", label="Inicio", icon=":material/home:")  # Opción siempre disponible
+
+        if es_admin:
+            st.subheader("Administrar permisos")
+            st.page_link("pages/pagina1.py", label="Usuarios", icon="👥")
+            st.page_link("pages/pagina2.py", label="Dispositivos", icon="🖥️")
+            st.page_link("pages/pagina3.py", label="Permisos", icon="🔗")
+
         btnSalir = st.button("Salir")
         if btnSalir:
             st.session_state.clear()
             st.rerun()
+
 
 def reconocer_usuario():
     """
@@ -85,7 +94,9 @@ def reconocer_usuario():
                 predicted_label = label_map[np.argmax(prediction)]
                 
                 st.success(f"Usuario reconocido: {predicted_label}")
+                usuario_data = buscar_usuario_por_nombre(predicted_label)
                 st.session_state["usuario"] = predicted_label
+                st.session_state["es_admin"] = bool(usuario_data[4]) if usuario_data else False
                 st.rerun()
             else:
                 st.error("No se detectó ningún rostro. Intenta de nuevo.")
@@ -108,8 +119,10 @@ def generarLogin():
             parPassword = st.text_input('Password', type='password')
             btnLogin = st.form_submit_button('Ingresar', type='primary')
             if btnLogin:
-                if validarUsuario(parUsuario, parPassword):
+                es_valido, es_admin = validarUsuario(parUsuario, parPassword)
+                if es_valido:
                     st.session_state['usuario'] = parUsuario
+                    st.session_state['es_admin'] = es_admin  # Guarda si el usuario es admin
                     st.rerun()
                 else:
                     st.error("Usuario o clave inválidos", icon=":material/gpp_maybe:")
